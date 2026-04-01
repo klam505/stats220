@@ -1,0 +1,98 @@
+---
+title: My dynamic report
+output: html_fragment
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE, error=FALSE)
+
+library(tidyverse)
+
+# Import data from published CSV
+logged_data <- read_csv(
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBv3dyrZKPyzXeenuFfFCxdz_KBLWN2_u59b0KWKxYxXbGnVhIporg96-4mkWql-N0MepXoPHx-98F/pub?gid=2074566949&single=true&output=csv"
+)
+
+# Rename variables and clean data
+latest_data <- logged_data %>%
+  rename(
+    ad_type = `What type of product or service is this ad for?`,
+    watch_seconds = `How many seconds did I watch the ad for?`,
+    known_brand = `Did I already know this brand before seeing the ad?`,
+    engagement = `How engaging was the ad?`,
+    clicked_ad = `Did I click into the ad?`
+  ) %>%
+  mutate(
+    watch_seconds = as.numeric(watch_seconds),
+    engagement = as.numeric(engagement),
+    watch_group = case_when(
+      watch_seconds <= 5 ~ "0-5 seconds",
+      watch_seconds <= 10 ~ "6-10 seconds",
+      watch_seconds <= 15 ~ "11-15 seconds",
+      TRUE ~ "16+ seconds"
+    ),
+    watch_group = factor(
+      watch_group,
+      levels = c("0-5 seconds", "6-10 seconds", "11-15 seconds", "16+ seconds")
+    )
+  )
+
+# Summary values
+mean_watch <- mean(latest_data$watch_seconds, na.rm = TRUE)
+mean_engagement <- mean(latest_data$engagement, na.rm = TRUE)
+num_ads <- nrow(latest_data)
+```
+
+```{css}
+body {
+  font-family: Arial, sans-serif;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  line-height: 1.6;
+  color: #222222;
+}
+
+h2 {
+  color: #4b2e83;
+  border-bottom: 2px solid #4b2e83;
+  padding-bottom: 6px;
+}
+
+p {
+  margin-bottom: 14px;
+}
+```
+
+## Instagram ads: watch time and engagement
+
+This dynamic report tracks the Instagram ads I observed and focuses on two main questions: how many seconds I watched each ad for, and how engaging I thought the ad was.
+
+So far, I have logged **`r num_ads` ads**. Across these observations, the **average watch time** was **`r round(mean_watch, 1)` seconds**, while the **average engagement rating** was **`r round(mean_engagement, 1)` out of 5**.
+
+These results suggest how long I stayed on an ad and how engaging I found it may be connected. The charts below help show both the overall pattern in watch time and how engagement ratings are distributed across different watch-time groups.
+
+```{r}
+ggplot(latest_data, aes(x = watch_group)) +
+  geom_bar() +
+  labs(
+    title = "How Long Instagram Ads Were Watched",
+    x = "Watch time group",
+    y = "Count"
+  )
+```
+
+The first chart shows that some ads were watched only briefly, while others held my attention for longer. This gives a simple overview of how long ads usually stayed on my screen.
+
+```{r}
+ggplot(latest_data, aes(x = watch_group, fill = factor(engagement))) +
+  geom_bar() +
+  labs(
+    title = "Engagement Ratings Across Watch Time Groups",
+    x = "Watch time group",
+    y = "Count",
+    fill = "Engagement Rating"
+  )
+```
+
+The second chart compares watch time groups with engagement ratings. If higher engagement ratings appear more often in the longer watch-time groups, that would suggest more engaging ads tended to keep my attention for longer.
